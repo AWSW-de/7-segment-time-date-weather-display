@@ -55,7 +55,7 @@
 // ###########################################################################################################################################
 // # Version number of the code:
 // ###########################################################################################################################################
-const char* CLOCK_VERSION = "V2.0.0";
+const char* CLOCK_VERSION = "V2.1.0";
 
 // ###########################################################################################################################################
 // Hardware settings:
@@ -893,37 +893,42 @@ void WIFI_SETUP() {
 // Write on the display:
 // ###########################################################################################################################################
 void writeArduinoOn7Segment() {
-  // Display A:
-  lcA.setChar(0, 7, ' ', false);
-  lcA.setChar(0, 6, iHour / 10, false);
-  lcA.setChar(0, 5, iHour % 10, true);
-  lcA.setChar(0, 4, iMinute / 10, false);
-  lcA.setChar(0, 3, iMinute % 10, true);
-  lcA.setChar(0, 2, iSecond / 10, false);
-  lcA.setChar(0, 1, iSecond % 10, false);
-  lcA.setChar(0, 0, ' ', false);
-  // Display B:
-  if (DateFormat == "DDMMYYYY") {
-    lcB.setChar(0, 7, iDay / 10, false);
-    lcB.setChar(0, 6, iDay % 10, true);
-    lcB.setChar(0, 5, iMonth / 10, false);
-    lcB.setChar(0, 4, iMonth % 10, true);
-    lcB.setChar(0, 3, (iYear / 1000) % 10, false);
-    lcB.setChar(0, 2, (iYear / 100) % 10, false);
-    lcB.setChar(0, 1, (iYear / 10) % 10, false);
-    lcB.setChar(0, 0, iYear % 10, false);
-  }
-  if (DateFormat == "MMDDYYYY") {
-    lcB.setChar(0, 7, iMonth / 10, false);
-    lcB.setChar(0, 6, iMonth % 10, true);
-    lcB.setChar(0, 5, iDay / 10, false);
-    lcB.setChar(0, 4, iDay % 10, true);
-    lcB.setChar(0, 3, (iYear / 1000) % 10, false);
-    lcB.setChar(0, 2, (iYear / 100) % 10, false);
-    lcB.setChar(0, 1, (iYear / 10) % 10, false);
-    lcB.setChar(0, 0, iYear % 10, false);
-  }
-  // Display C:
+  if (intensity > 0) {  // Display intensity set > 0 --> Display on:
+    // Leave the MAX72XX power-saving mode:
+    lcA.shutdown(0, false);
+    lcB.shutdown(0, false);
+    lcC.shutdown(0, false);
+    // Display A:
+    lcA.setChar(0, 7, ' ', false);
+    lcA.setChar(0, 6, iHour / 10, false);
+    lcA.setChar(0, 5, iHour % 10, true);
+    lcA.setChar(0, 4, iMinute / 10, false);
+    lcA.setChar(0, 3, iMinute % 10, true);
+    lcA.setChar(0, 2, iSecond / 10, false);
+    lcA.setChar(0, 1, iSecond % 10, false);
+    lcA.setChar(0, 0, ' ', false);
+    // Display B:
+    if (DateFormat == "DDMMYYYY") {
+      lcB.setChar(0, 7, iDay / 10, false);
+      lcB.setChar(0, 6, iDay % 10, true);
+      lcB.setChar(0, 5, iMonth / 10, false);
+      lcB.setChar(0, 4, iMonth % 10, true);
+      lcB.setChar(0, 3, (iYear / 1000) % 10, false);
+      lcB.setChar(0, 2, (iYear / 100) % 10, false);
+      lcB.setChar(0, 1, (iYear / 10) % 10, false);
+      lcB.setChar(0, 0, iYear % 10, false);
+    }
+    if (DateFormat == "MMDDYYYY") {
+      lcB.setChar(0, 7, iMonth / 10, false);
+      lcB.setChar(0, 6, iMonth % 10, true);
+      lcB.setChar(0, 5, iDay / 10, false);
+      lcB.setChar(0, 4, iDay % 10, true);
+      lcB.setChar(0, 3, (iYear / 1000) % 10, false);
+      lcB.setChar(0, 2, (iYear / 100) % 10, false);
+      lcB.setChar(0, 1, (iYear / 10) % 10, false);
+      lcB.setChar(0, 0, iYear % 10, false);
+    }
+    // Display C:
     if ((int)iTempInt1 > 99) lcC.setChar(0, 7, (((int)iTempInt1 / 100) % 10), false);
     else lcC.setChar(0, 7, ' ', false);
     if ((int)iTempInt1 > 9) lcC.setChar(0, 6, (((int)iTempInt1 / 10) % 10), false);
@@ -936,6 +941,15 @@ void writeArduinoOn7Segment() {
     if ((int)iHum > 9) lcC.setChar(0, 1, (((int)iHum / 10) % 10), false);
     else lcC.setChar(0, 1, ' ', false);
     lcC.setChar(0, 0, ((int)iHum % 10), false);
+  } else {  // Display intensity set to 0 --> Display off:
+    lcA.clearDisplay(0);
+    lcB.clearDisplay(0);
+    lcC.clearDisplay(0);
+    // Set the MAX72XX in power-saving mode:
+    lcA.shutdown(0, true);
+    lcB.shutdown(0, true);
+    lcC.shutdown(0, true);
+  }
 }
 
 // ###########################################################################################################################################
@@ -1041,50 +1055,50 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
 // # Get waether data:
 // ###########################################################################################################################################
 void getCurrentWeather() {
-    // Send an HTTP GET request
-    Serial.println("Get current weather data...");
+  // Send an HTTP GET request
+  Serial.println("Get current weather data...");
 
-    // Check WiFi connection status
-    if (WiFi.status() == WL_CONNECTED) {
-      String serverPath = "";
-      if (weatherunits == "M") serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey + "&units=metric";    // Celsius
-      if (weatherunits == "I") serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey + "&units=imperial";  // Fahrenheit
+  // Check WiFi connection status
+  if (WiFi.status() == WL_CONNECTED) {
+    String serverPath = "";
+    if (weatherunits == "M") serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey + "&units=metric";    // Celsius
+    if (weatherunits == "I") serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey + "&units=imperial";  // Fahrenheit
 
-      jsonBuffer = httpGETRequest(serverPath.c_str());
-      Serial.println(jsonBuffer);
-      JSONVar myObject = JSON.parse(jsonBuffer);
+    jsonBuffer = httpGETRequest(serverPath.c_str());
+    Serial.println(jsonBuffer);
+    JSONVar myObject = JSON.parse(jsonBuffer);
 
-      // JSON.typeof(jsonVar) can be used to get the type of the var
-      if (JSON.typeof(myObject) == "undefined") {
-        Serial.println("Parsing input failed!");
-        return;
-      }
-
-      Serial.print("JSON object = ");
-      Serial.println(myObject);
-
-      // Temperature:
-      Serial.print("Temperature: ");
-      Serial.print(myObject["main"]["temp"]);
-      if (weatherunits == "M") Serial.println(" °C");
-      if (weatherunits == "I") Serial.println(" °F");
-      // Show the temperature number with its decimal part on the display:
-      iTemp = double(myObject["main"]["temp"]);
-      String dataTemp = String(iTemp);
-      byte dotPositionTemp = dataTemp.indexOf('.');
-      long integralPartTemp = dataTemp.toInt();
-      long decimalPartTemp = dataTemp.substring(dotPositionTemp + 1).toInt();
-      iTempInt1 = integralPartTemp;
-      iTempInt2 = decimalPartTemp;
-
-      // Humidity:
-      Serial.print("Humidity: ");
-      Serial.println(myObject["main"]["humidity"]);
-      iHum = (long)(myObject["main"]["humidity"]);
-    } else {
-      Serial.println("WiFi Disconnected");
+    // JSON.typeof(jsonVar) can be used to get the type of the var
+    if (JSON.typeof(myObject) == "undefined") {
+      Serial.println("Parsing input failed!");
+      return;
     }
-    lastTime = millis();
+
+    Serial.print("JSON object = ");
+    Serial.println(myObject);
+
+    // Temperature:
+    Serial.print("Temperature: ");
+    Serial.print(myObject["main"]["temp"]);
+    if (weatherunits == "M") Serial.println(" °C");
+    if (weatherunits == "I") Serial.println(" °F");
+    // Show the temperature number with its decimal part on the display:
+    iTemp = double(myObject["main"]["temp"]);
+    String dataTemp = String(iTemp);
+    byte dotPositionTemp = dataTemp.indexOf('.');
+    long integralPartTemp = dataTemp.toInt();
+    long decimalPartTemp = dataTemp.substring(dotPositionTemp + 1).toInt();
+    iTempInt1 = integralPartTemp;
+    iTempInt2 = decimalPartTemp;
+
+    // Humidity:
+    Serial.print("Humidity: ");
+    Serial.println(myObject["main"]["humidity"]);
+    iHum = (long)(myObject["main"]["humidity"]);
+  } else {
+    Serial.println("WiFi Disconnected");
+  }
+  lastTime = millis();
 }
 
 String httpGETRequest(const char* serverName) {
