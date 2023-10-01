@@ -55,7 +55,7 @@
 // ###########################################################################################################################################
 // # Version number of the code:
 // ###########################################################################################################################################
-const char* CLOCK_VERSION = "V2.1.0";
+const char* CLOCK_VERSION = "V2.1.1";
 
 // ###########################################################################################################################################
 // Hardware settings:
@@ -95,6 +95,7 @@ String weatherunits = "";
 String DateFormat = "";
 String Timezone = "";
 String NTPserver = "";
+int UseLog = 0;  // Show Serial.println output if set to 1 during runtime
 
 // ###########################################################################################################################################
 // Weather data values:
@@ -976,27 +977,34 @@ void initTime(String timezone) {
   Serial.println("Setting up time");
   // Display anination:
   for (int i = 8; i >= 0; i = i - 1) {
+    lcA.setChar(0, i, '-', false);
     lcB.setChar(0, i, '-', false);
     delay(100);
   }
   delay(100);
+  lcA.clearDisplay(0);
   lcB.clearDisplay(0);
   configTime(0, 0, NTPserver.c_str());
   while (!getLocalTime(&timeinfo)) {
     // Display anination:
     for (int i = 8; i >= 0; i = i - 1) {
+      lcA.setChar(0, i, '-', false);
       lcB.setChar(0, i, '-', false);
       delay(100);
     }
+    delay(100);
+    lcA.clearDisplay(0);
     lcB.clearDisplay(0);
     Serial.println("! Failed to obtain time - Time server could not be reached ! --> Try: " + String(TimeResetCounter) + " of 5...");
     TimeResetCounter = TimeResetCounter + 1;
     if (TimeResetCounter == 6) {
       // Display anination:
       for (int i = 8; i >= 0; i = i - 1) {
+        lcA.setChar(0, i, '8', false);
         lcB.setChar(0, i, '8', false);
         delay(100);
       }
+      lcA.clearDisplay(0);
       lcB.clearDisplay(0);
       delay(100);
       Serial.println("! Failed to obtain time - Time server could not be reached ! --> RESTART THE DEVICE NOW...");
@@ -1021,6 +1029,9 @@ void printLocalTime() {
   iDay = timeinfo.tm_mday;
   iMonth = timeinfo.tm_mon + 1;
   iYear = timeinfo.tm_year + 1900;
+
+  if (iHour == 0 && iMinute == 0 && iSecond == 0) ESP.restart();  // Fix to reboot the device 1x per day
+
   // Serial.print("Time: ");
   // Serial.print(iHour);
   // Serial.print(":");
@@ -1056,7 +1067,19 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
 // ###########################################################################################################################################
 void getCurrentWeather() {
   // Send an HTTP GET request
-  Serial.println("Get current weather data...");
+  if (UseLog == 1) Serial.println("Get current weather data...");
+
+
+  // Display anination:
+  for (int y = 0; y < 3; y++) {
+    lcC.clearDisplay(0);
+    for (int i = 8; i >= 0; i = i - 1) {
+      lcC.setChar(0, i, '-', false);
+      delay(100);
+    }
+    delay(100);
+  }
+
 
   // Check WiFi connection status
   if (WiFi.status() == WL_CONNECTED) {
@@ -1065,23 +1088,25 @@ void getCurrentWeather() {
     if (weatherunits == "I") serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&APPID=" + openWeatherMapApiKey + "&units=imperial";  // Fahrenheit
 
     jsonBuffer = httpGETRequest(serverPath.c_str());
-    Serial.println(jsonBuffer);
+    if (UseLog == 1) Serial.println(jsonBuffer);
     JSONVar myObject = JSON.parse(jsonBuffer);
 
     // JSON.typeof(jsonVar) can be used to get the type of the var
     if (JSON.typeof(myObject) == "undefined") {
-      Serial.println("Parsing input failed!");
+      if (UseLog == 1) Serial.println("Parsing input failed!");
       return;
     }
 
-    Serial.print("JSON object = ");
-    Serial.println(myObject);
+    if (UseLog == 1) Serial.print("JSON object = ");
+    if (UseLog == 1) Serial.println(myObject);
 
     // Temperature:
-    Serial.print("Temperature: ");
-    Serial.print(myObject["main"]["temp"]);
-    if (weatherunits == "M") Serial.println(" °C");
-    if (weatherunits == "I") Serial.println(" °F");
+    if (UseLog == 1) {
+      Serial.print("Temperature: ");
+      Serial.print(myObject["main"]["temp"]);
+      if (weatherunits == "M") Serial.println(" °C");
+      if (weatherunits == "I") Serial.println(" °F");
+    }
     // Show the temperature number with its decimal part on the display:
     iTemp = double(myObject["main"]["temp"]);
     String dataTemp = String(iTemp);
@@ -1092,11 +1117,13 @@ void getCurrentWeather() {
     iTempInt2 = decimalPartTemp;
 
     // Humidity:
-    Serial.print("Humidity: ");
-    Serial.println(myObject["main"]["humidity"]);
+    if (UseLog == 1) {
+      Serial.print("Humidity: ");
+      Serial.println(myObject["main"]["humidity"]);
+    }
     iHum = (long)(myObject["main"]["humidity"]);
   } else {
-    Serial.println("WiFi Disconnected");
+    if (UseLog == 1) Serial.println("WiFi Disconnected");
   }
   lastTime = millis();
 }
@@ -1114,12 +1141,12 @@ String httpGETRequest(const char* serverName) {
   String payload = "{}";
 
   if (httpResponseCode > 0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
+    if (UseLog == 1) Serial.print("HTTP Response code: ");
+    if (UseLog == 1) Serial.println(httpResponseCode);
     payload = http.getString();
   } else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
+    if (UseLog == 1) Serial.print("Error code: ");
+    if (UseLog == 1) Serial.println(httpResponseCode);
   }
   // Free resources
   http.end();
@@ -1138,7 +1165,7 @@ String IpAddress2String(const IPAddress& ipAddress) {
 // # Show the IP-address on the display:
 // ###########################################################################################################################################
 void ShowIPaddress() {
-  Serial.println("Show current IP-address on the display: " + IpAddress2String(WiFi.localIP()));
+  if (UseLog == 1) Serial.println("Show current IP-address on the display: " + IpAddress2String(WiFi.localIP()));
 
   // Display A:
   lcA.setChar(0, 7, ' ', false);
