@@ -55,7 +55,7 @@
 // ###########################################################################################################################################
 // # Version number of the code:
 // ###########################################################################################################################################
-const char* CLOCK_VERSION = "V2.2.1";
+const char* CLOCK_VERSION = "V2.2.2";
 
 // ###########################################################################################################################################
 // Hardware settings:
@@ -932,21 +932,19 @@ void writeArduinoOn7Segment() {
       lcB.setChar(0, 0, iYear % 10, false);
     }
     // Display C:
-    if ((int)iTempInt1 > 99) lcC.setChar(0, 7, (((int)iTempInt1 / 100) % 10), false);
-    else lcC.setChar(0, 7, ' ', false);
-
     // Minus Temperature?
     if (MinusTemp == 1) {
       lcC.setChar(0, 7, '-', false);
     } else {
       lcC.setChar(0, 7, ' ', false);
     }
-
+    // TEMP:
     if ((int)iTempInt1 > 9) lcC.setChar(0, 6, (((int)iTempInt1 / 10) % 10), false);
     else lcC.setChar(0, 6, ' ', false);
     lcC.setChar(0, 5, ((int)iTempInt1 % 10), true);
     lcC.setChar(0, 4, (((int)iTempInt2 / 10) % 10), false);
-    lcC.setChar(0, 3, (((int)iTempInt2) % 10), false);  // Split to seperate numbers
+    lcC.setChar(0, 3, (((int)iTempInt2) % 10), false);
+    // HUM:
     if ((int)iHum > 99) lcC.setChar(0, 2, (((int)iHum / 100) % 10), false);
     else lcC.setChar(0, 2, ' ', false);
     if ((int)iHum > 9) lcC.setChar(0, 1, (((int)iHum / 10) % 10), false);
@@ -1072,6 +1070,25 @@ void setTime(int yr, int month, int mday, int hr, int minute, int sec, int isDst
 }
 // ###########################################################################################################################################
 
+
+// ###########################################################################################################################################
+// # Split temperature value by . char:
+// ###########################################################################################################################################
+String getValue(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = { 0, -1 };
+  int maxIndex = data.length() - 1;
+
+  for (int i = 0; i <= maxIndex && found <= index; i++) {
+    if (data.charAt(i) == separator || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
 // ###########################################################################################################################################
 // # Get waether data:
 // ###########################################################################################################################################
@@ -1130,11 +1147,21 @@ void getCurrentWeather() {
       MinusTemp = 0;
     }
 
-    byte dotPositionTemp = dataTemp.indexOf('.');
-    long integralPartTemp = dataTemp.toInt();
-    long decimalPartTemp = dataTemp.substring(dotPositionTemp + 1).toInt();
-    iTempInt1 = integralPartTemp;
-    iTempInt2 = decimalPartTemp;
+    // Split value by . sign:
+    String integralPartTemp = getValue(dataTemp, '.', 0);
+    String decimalPartTemp = getValue(dataTemp, '.', 1);
+
+    // Remove - from value:
+    if (MinusTemp == 1) {
+      int pos = integralPartTemp.indexOf('-');
+      integralPartTemp = integralPartTemp.substring(pos + 1);
+    }
+
+    // Set value to in to be displayed:
+    iTempInt1 = integralPartTemp.toInt();
+    iTempInt2 = decimalPartTemp.toInt();
+    if (UseLog == 1) Serial.println(iTempInt1);
+    if (UseLog == 1) Serial.println(iTempInt2);
 
     // Humidity:
     if (UseLog == 1) {
