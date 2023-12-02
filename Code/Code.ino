@@ -55,7 +55,7 @@
 // ###########################################################################################################################################
 // # Version number of the code:
 // ###########################################################################################################################################
-const char* CLOCK_VERSION = "V2.1.1";
+const char* CLOCK_VERSION = "V2.2.0";
 
 // ###########################################################################################################################################
 // Hardware settings:
@@ -95,13 +95,14 @@ String weatherunits = "";
 String DateFormat = "";
 String Timezone = "";
 String NTPserver = "";
+int MinusTemp = 0;
 int UseLog = 0;  // Show Serial.println output if set to 1 during runtime
 
 // ###########################################################################################################################################
 // Weather data values:
 // ###########################################################################################################################################
 unsigned long lastTime = 0;
-unsigned long timerDelay = 5;  // Timer set to 5 minutes (60000 * 5) --> Do not set it to low or you might get banned from the service!
+unsigned long timerDelay = 1;  // Timer set to 5 minutes (60000 * 5) --> Do not set it to low or you might get banned from the service!
 String jsonBuffer;
 
 // ###########################################################################################################################################
@@ -932,11 +933,19 @@ void writeArduinoOn7Segment() {
     // Display C:
     if ((int)iTempInt1 > 99) lcC.setChar(0, 7, (((int)iTempInt1 / 100) % 10), false);
     else lcC.setChar(0, 7, ' ', false);
+
+    // Minus Temperature?
+    if (MinusTemp == 1) {
+      lcC.setChar(0, 7, '-', false);
+    } else {
+      lcC.setChar(0, 7, ' ', false);
+    }
+
     if ((int)iTempInt1 > 9) lcC.setChar(0, 6, (((int)iTempInt1 / 10) % 10), false);
     else lcC.setChar(0, 6, ' ', false);
     lcC.setChar(0, 5, ((int)iTempInt1 % 10), true);
     lcC.setChar(0, 4, (((int)iTempInt2 / 10) % 10), false);
-    lcC.setChar(0, 3, ' ', false);  // Split to seperate numbers
+    lcC.setChar(0, 3, (((int)iTempInt2) % 10), false);  // Split to seperate numbers
     if ((int)iHum > 99) lcC.setChar(0, 2, (((int)iHum / 100) % 10), false);
     else lcC.setChar(0, 2, ' ', false);
     if ((int)iHum > 9) lcC.setChar(0, 1, (((int)iHum / 10) % 10), false);
@@ -995,9 +1004,9 @@ void initTime(String timezone) {
     delay(100);
     lcA.clearDisplay(0);
     lcB.clearDisplay(0);
-    Serial.println("! Failed to obtain time - Time server could not be reached ! --> Try: " + String(TimeResetCounter) + " of 5...");
+    Serial.println("! Failed to obtain time - Time server could not be reached ! --> Try: " + String(TimeResetCounter) + " of 3...");
     TimeResetCounter = TimeResetCounter + 1;
-    if (TimeResetCounter == 6) {
+    if (TimeResetCounter == 4) {
       // Display anination:
       for (int i = 8; i >= 0; i = i - 1) {
         lcA.setChar(0, i, '8', false);
@@ -1069,7 +1078,6 @@ void getCurrentWeather() {
   // Send an HTTP GET request
   if (UseLog == 1) Serial.println("Get current weather data...");
 
-
   // Display anination:
   for (int y = 0; y < 3; y++) {
     lcC.clearDisplay(0);
@@ -1079,7 +1087,6 @@ void getCurrentWeather() {
     }
     delay(100);
   }
-
 
   // Check WiFi connection status
   if (WiFi.status() == WL_CONNECTED) {
@@ -1107,9 +1114,21 @@ void getCurrentWeather() {
       if (weatherunits == "M") Serial.println(" °C");
       if (weatherunits == "I") Serial.println(" °F");
     }
+
     // Show the temperature number with its decimal part on the display:
     iTemp = double(myObject["main"]["temp"]);
     String dataTemp = String(iTemp);
+
+    // Minus temperature?
+    if (UseLog == 1) Serial.println(iTemp);
+    if (dataTemp[0] == '-') {
+      if (UseLog == 1) Serial.println("Minus");
+      MinusTemp = 1;
+    } else {
+      if (UseLog == 1) Serial.println("Plus");
+      MinusTemp = 0;
+    }
+
     byte dotPositionTemp = dataTemp.indexOf('.');
     long integralPartTemp = dataTemp.toInt();
     long decimalPartTemp = dataTemp.substring(dotPositionTemp + 1).toInt();
@@ -1124,6 +1143,8 @@ void getCurrentWeather() {
     iHum = (long)(myObject["main"]["humidity"]);
   } else {
     if (UseLog == 1) Serial.println("WiFi Disconnected");
+    delay(250);
+    ESP.restart();
   }
   lastTime = millis();
 }
