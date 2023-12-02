@@ -55,7 +55,7 @@
 // ###########################################################################################################################################
 // # Version number of the code:
 // ###########################################################################################################################################
-const char* CLOCK_VERSION = "V2.2.0";
+const char* CLOCK_VERSION = "V2.2.1";
 
 // ###########################################################################################################################################
 // Hardware settings:
@@ -102,7 +102,7 @@ int UseLog = 0;  // Show Serial.println output if set to 1 during runtime
 // Weather data values:
 // ###########################################################################################################################################
 unsigned long lastTime = 0;
-unsigned long timerDelay = 1;  // Timer set to 5 minutes (60000 * 5) --> Do not set it to low or you might get banned from the service!
+unsigned long timerDelay = 5;  // Timer set to 5 minutes (60000 * 5) --> Do not set it to low or you might get banned from the service!
 String jsonBuffer;
 
 // ###########################################################################################################################################
@@ -112,6 +112,7 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Serial.println("######################################################################");
+  Serial.println("# 7-segment time + date + weather display");
   Serial.print("# Startup of version: ");
   Serial.println(CLOCK_VERSION);
   Serial.println("######################################################################");
@@ -815,7 +816,7 @@ void CaptivePotalSetup() {
 // # Wifi setup and reconnect function that runs once at startup and during the loop function of the ESP:
 // ###########################################################################################################################################
 void WIFI_SETUP() {
-  Serial.println(" ");
+  if (UseLog == 1) Serial.println(" ");
   esp_log_level_set("wifi", ESP_LOG_WARN);  // Disable WiFi debug warnings
   String WIFIssid = preferences.getString("WIFIssid");
   bool WiFiConfigEmpty = false;
@@ -837,17 +838,17 @@ void WIFI_SETUP() {
   if (WiFiConfigEmpty == true) {
     CaptivePotalSetup();
   } else {
-    Serial.println("Try to connect to found WiFi configuration: ");
+    if (UseLog == 1) Serial.println("Try to connect to found WiFi configuration: ");
     WiFi.disconnect();
     int tryCount = 0;
     WiFi.mode(WIFI_STA);
     WiFi.begin((const char*)WIFIssid.c_str(), (const char*)WIFIpass.c_str());
-    Serial.println("Connecting to WiFi " + String(WIFIssid));
+    if (UseLog == 1) Serial.println("Connecting to WiFi " + String(WIFIssid));
     while (WiFi.status() != WL_CONNECTED) {
       tryCount = tryCount + 1;
-      Serial.print("WiFI connection try #: ");
-      Serial.print(tryCount);
-      Serial.println(" of " + String(maxWiFiconnctiontries));
+      if (UseLog == 1) Serial.print("WiFI connection try #: ");
+      if (UseLog == 1) Serial.print(tryCount);
+      if (UseLog == 1) Serial.println(" of " + String(maxWiFiconnctiontries));
       // Display anination:
       for (int i = 0; i <= 7; i++) {
         lcA.setChar(0, 7 - i, 7 - i, true);
@@ -861,33 +862,33 @@ void WIFI_SETUP() {
       lcC.clearDisplay(0);
       delay(100);
       if (tryCount == maxWiFiconnctiontries) {
-        Serial.println("\n\nWIFI CONNECTION ERROR: If the connection still can not be established please check the WiFi settings or location of the device.\n\n");
+        if (UseLog == 1) Serial.println("\n\nWIFI CONNECTION ERROR: If the connection still can not be established please check the WiFi settings or location of the device.\n\n");
         preferences.putString("WIFIssid", "");  // Reset entered WiFi ssid
         preferences.putString("WIFIpass", "");  // Reset entered WiFi password
         preferences.end();
         delay(250);
-        Serial.println("WiFi settings deleted because in " + String(maxWiFiconnctiontries) + " tries the WiFi connection could not be established. Temporary Clock access point will be started to reconfigure WiFi again.");
+        if (UseLog == 1) Serial.println("WiFi settings deleted because in " + String(maxWiFiconnctiontries) + " tries the WiFi connection could not be established. Temporary Clock access point will be started to reconfigure WiFi again.");
         ESP.restart();
       }
       delay(500);
     }
-    Serial.println(" ");
+    if (UseLog == 1) Serial.println(" ");
     WiFIsetup = true;
-    Serial.print("Successfully connected now to WiFi SSID: ");
-    Serial.println(WiFi.SSID());
-    Serial.println("IP: " + WiFi.localIP().toString());
-    Serial.println("DNS: " + WiFi.dnsIP().toString());
+    if (UseLog == 1) Serial.print("Successfully connected now to WiFi SSID: ");
+    if (UseLog == 1) Serial.println(WiFi.SSID());
+    if (UseLog == 1) Serial.println("IP: " + WiFi.localIP().toString());
+    if (UseLog == 1) Serial.println("DNS: " + WiFi.dnsIP().toString());
     delay(1000);
     ShowIPaddress();      // Display the current IP-address
     configNTPTime();      // NTP time setup
     setupWebInterface();  // Generate the configuration page
     getCurrentWeather();  // Get weather data
-    Serial.println("######################################################################");
-    Serial.println("# Web interface online at: http://" + IpAddress2String(WiFi.localIP()));
-    Serial.println("######################################################################");
-    Serial.println("# 7-Segment Clock startup finished...");
-    Serial.println("######################################################################");
-    Serial.println(" ");
+    if (UseLog == 1) Serial.println("######################################################################");
+    if (UseLog == 1) Serial.println("# Web interface online at: http://" + IpAddress2String(WiFi.localIP()));
+    if (UseLog == 1) Serial.println("######################################################################");
+    if (UseLog == 1) Serial.println("# 7-Segment Clock startup finished...");
+    if (UseLog == 1) Serial.println("######################################################################");
+    if (UseLog == 1) Serial.println(" ");
   }
 }
 
@@ -971,7 +972,7 @@ void configNTPTime() {
 }
 // ###########################################################################################################################################
 void setTimezone(String timezone) {
-  Serial.printf("Setting timezone to %s\n", timezone.c_str());
+  if (UseLog == 1) Serial.printf("Setting timezone to %s\n", timezone.c_str());
   setenv("TZ", timezone.c_str(), 1);  //  Now adjust the TZ.  Clock settings are adjusted to show the new local time
   tzset();
 }
@@ -983,7 +984,7 @@ void initTime(String timezone) {
   lcB.clearDisplay(0);
   lcC.clearDisplay(0);
   struct tm timeinfo;
-  Serial.println("Setting up time");
+  if (UseLog == 1) Serial.println("Setting up time");
   // Display anination:
   for (int i = 8; i >= 0; i = i - 1) {
     lcA.setChar(0, i, '-', false);
@@ -1004,7 +1005,7 @@ void initTime(String timezone) {
     delay(100);
     lcA.clearDisplay(0);
     lcB.clearDisplay(0);
-    Serial.println("! Failed to obtain time - Time server could not be reached ! --> Try: " + String(TimeResetCounter) + " of 3...");
+    if (UseLog == 1) Serial.println("! Failed to obtain time - Time server could not be reached ! --> Try: " + String(TimeResetCounter) + " of 3...");
     TimeResetCounter = TimeResetCounter + 1;
     if (TimeResetCounter == 4) {
       // Display anination:
@@ -1016,11 +1017,11 @@ void initTime(String timezone) {
       lcA.clearDisplay(0);
       lcB.clearDisplay(0);
       delay(100);
-      Serial.println("! Failed to obtain time - Time server could not be reached ! --> RESTART THE DEVICE NOW...");
+      if (UseLog == 1) Serial.println("! Failed to obtain time - Time server could not be reached ! --> RESTART THE DEVICE NOW...");
       ESP.restart();
     }
   }
-  Serial.println("Got the time from NTP");
+  if (UseLog == 1) Serial.println("Got the time from NTP");
   setTimezone(timezone);
 }
 // ###########################################################################################################################################
